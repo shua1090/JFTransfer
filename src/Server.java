@@ -1,6 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import javax.crypto.*;
 class GUI{
     /*
     <summary>
@@ -34,6 +35,10 @@ class GUI{
 
                     if (returnVal == fc.APPROVE_OPTION){
                         System.out.println("Approved");
+                        var file = fc.getSelectedFile();
+                        System.out.println(file.getAbsolutePath());
+                        System.out.println(file.getClass().toString());
+                        System.out.println(file.getName());
                     } else {
                         System.out.println("Transaction has not been approved");
                     }
