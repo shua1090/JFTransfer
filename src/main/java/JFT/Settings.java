@@ -10,7 +10,7 @@ public class Settings {
 
     public Settings() throws IOException {
         this.prop = new Properties();
-        if (!createConfFile("jft.conf")) throw new FileNotFoundException("Settings file not found, or unable to be created"); 
+        if (!createConfFile("jft.conf")) throw new FileNotFoundException("Settings file not found, or cannot be created!"); 
         this.in = new FileInputStream("jft.conf");
         prop.load(in);
         in.close();
@@ -18,7 +18,7 @@ public class Settings {
 
     public Settings(String fileName) throws IOException {
         this.prop = new Properties();
-        if (!createConfFile("jft.conf")) throw new FileNotFoundException("Settings file not found, or unable to be created");
+        if (!createConfFile("jft.conf")) throw new FileNotFoundException("Settings file not found, or cannot be created!");
         this.in = new FileInputStream(fileName);
         prop.load(in);
         in.close();
