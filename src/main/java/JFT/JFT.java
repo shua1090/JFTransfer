@@ -5,24 +5,9 @@ import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.*;
 import java.util.stream.Stream;
 
-import javax.xml.bind.annotation.*;
-
-
-class Settings{
-
-    @XmlElement
-    int port = 0;
-
-    Settings(){
-
-    }
-}
 
 public class JFT {
     public static HashMap<Path, String> pathBindings = new HashMap<Path, String>();
@@ -31,31 +16,28 @@ public class JFT {
 
     public static ArrayList<ArrayList<Path>> changeList = new ArrayList<ArrayList<Path>>();
 
-    static boolean isChild(File maybeChild, File possibleParent)
-    {
-        return maybeChild.getAbsolutePath().startsWith( possibleParent.getAbsolutePath());
+    static boolean isChild(File maybeChild, File possibleParent) {
+        return maybeChild.getAbsolutePath().startsWith(possibleParent.getAbsolutePath());
     }
 
     public static ArrayList<Path> allRelativeFilePathsInDirectory() {
 
         ArrayList<Path> arr = new ArrayList<>();
         Path path = Path.of(System.getProperty("user.dir"));
-        try (Stream<Path> pathStream = Files.walk(path)
-                .filter(Files::isRegularFile)
-        ) {
+        try (Stream<Path> pathStream = Files.walk(path).filter(Files::isRegularFile)) {
 
             for (Path file : (Iterable<Path>) pathStream::iterator) {
                 // something that throws IOException
 
                 boolean shouldIgnore = false;
 
-                for (var z : JFTIgnore){
-                    if(isChild(file.toFile(), z.toFile())) {
+                for (var z : JFTIgnore) {
+                    if (isChild(file.toFile(), z.toFile())) {
                         shouldIgnore = true;
                     }
                 }
                 if (!shouldIgnore)
-                arr.add(path.relativize(file));
+                    arr.add(path.relativize(file));
 
             }
         } catch (IOException e) {
@@ -67,27 +49,27 @@ public class JFT {
         return arr;
     }
 
-    public static void getShaMDFileArray(ArrayList<Path> fileList){
+    public static void getShaMDFileArray(ArrayList<Path> fileList) {
 
-        for (var z : fileList){
+        for (var z : fileList) {
             try {
                 byte[] data = Files.readAllBytes(z);
                 String hash = getShaMD(data);
                 pathBindings.put(z, hash);
-            } catch (Exception e){
-                System.out.println("ERROR IN "+z);
+            } catch (Exception e) {
+                System.out.println("ERROR IN " + z);
             }
         }
 
-//        System.out.println(pathBindings);
+        // System.out.println(pathBindings);
 
     }
 
-    public static String getShaMD(byte[] inputArray){
+    public static String getShaMD(byte[] inputArray) {
         MessageDigest md = null;
-        try{
+        try {
             md = MessageDigest.getInstance("SHA-256");
-        } catch (Exception E){
+        } catch (Exception E) {
             System.out.println(Arrays.toString(E.getStackTrace()));
         }
 
@@ -99,23 +81,21 @@ public class JFT {
         BigInteger number = new BigInteger(1, hash);
         StringBuilder hexString = new StringBuilder(number.toString(16));
 
-        while (hexString.length() < 32)
-        {
+        while (hexString.length() < 32) {
             hexString.insert(0, '0');
         }
 
         return hexString.toString();
     }
 
-    /* A: A B C
-     B: A B D -> C
-
-     A: A B D
-     B: A B C -> D
+    /*
+     * A: A B C B: A B D -> C
+     *
+     * A: A B D B: A B C -> D
      */
 
     // Index 0: Additions; Index 1: Deletions;
-    public static <T> ArrayList<ArrayList<T>> getDifferences(ArrayList<T> ListA, ArrayList<T> ListB){
+    public static <T> ArrayList<ArrayList<T>> getDifferences(ArrayList<T> ListA, ArrayList<T> ListB) {
 
         ArrayList<T> deletions = new ArrayList<T>(ListA);
         ArrayList<T> additions = new ArrayList<T>(ListB);
@@ -124,7 +104,7 @@ public class JFT {
         additions.removeAll(ListA);
 
         System.out.println("Deletions: " + deletions);
-        System.out.println("Additions: "+additions);
+        System.out.println("Additions: " + additions);
 
         var arr = new ArrayList<ArrayList<T>>(2);
         arr.add(additions);
@@ -133,11 +113,11 @@ public class JFT {
         return arr;
     }
 
-    public static ArrayList<Path>  getModifiedFiles(HashMap<Path, String> originalHash, ArrayList<Path> originalList){
+    public static ArrayList<Path> getModifiedFiles(HashMap<Path, String> originalHash, ArrayList<Path> originalList) {
         ArrayList<Path> modifiedFileList = new ArrayList<Path>();
 
-        for (Path p : originalList){
-            if (!originalHash.get(p).equals(pathBindings.get(p))){
+        for (Path p : originalList) {
+            if (!originalHash.get(p).equals(pathBindings.get(p))) {
                 modifiedFileList.add(p);
             }
         }
@@ -159,14 +139,14 @@ public class JFT {
         String line;
         ArrayList<Path> arr = new ArrayList<Path>();
 
-        HashMap<Path, String> serializedData= new HashMap<Path, String>();
+        HashMap<Path, String> serializedData = new HashMap<Path, String>();
 
         try {
             BufferedReader reader = new BufferedReader(new FileReader(filename));
             while ((line = reader.readLine()) != null) {
-//                arr.add(Path.of(line));
+                // arr.add(Path.of(line));
                 String pathGet = line.substring(0, line.indexOf(":"));
-                String hashGet = line.substring(line.indexOf(":")+1);
+                String hashGet = line.substring(line.indexOf(":") + 1);
                 serializedData.put(Path.of(pathGet), hashGet);
             }
 
@@ -177,28 +157,25 @@ public class JFT {
         return serializedData;
     }
 
-    boolean ignoringPolicy(File maybeChild, File possibleParent)
-    {
-        return maybeChild.getAbsolutePath().startsWith( possibleParent.getAbsolutePath());
+    boolean ignoringPolicy(File maybeChild, File possibleParent) {
+        return maybeChild.getAbsolutePath().startsWith(possibleParent.getAbsolutePath());
     }
 
     static String jftDir = System.getProperty("user.dir") + "/.jft/";
-    public static void initializeRepository(){
 
-        var IgnoreLists = new Path[]{
-                Path.of(".idea"), Path.of(".git"),
-                Path.of("src"), Path.of("out"),
-                Path.of("target")
-        };
+    public static void initializeRepository() {
+
+        var IgnoreLists = new Path[]{Path.of(".idea"), Path.of(".git"), Path.of("src"), Path.of("out"),
+                Path.of("target")};
 
         Collections.addAll(JFTIgnore, IgnoreLists);
 
         getShaMDFileArray(allRelativeFilePathsInDirectory());
         try {
-//            readArray(System.getProperty("user.dir")+"/.jft/prevcom.file");
+            // readArray(System.getProperty("user.dir")+"/.jft/prevcom.file");
             Files.createDirectories(Path.of(jftDir));
-//            System.out.println(pathBindings);
-            writeArray(jftDir+"prevcom.file", pathsInDirectoryList);
+            // System.out.println(pathBindings);
+            writeArray(jftDir + "prevcom.file", pathsInDirectoryList);
         } catch (IOException e) {
             System.out.println("An error occurred:");
             e.printStackTrace();
@@ -206,14 +183,11 @@ public class JFT {
 
     }
 
-    public static void push(){
-        var z = readArray(jftDir+"/prevcom.file");
+    public static void push() throws IOException {
+        var z = readArray(jftDir + "/prevcom.file");
 
-        var IgnoreLists = new Path[]{
-                Path.of(".idea"), Path.of(".git"),
-                Path.of("src"), Path.of("out"),
-                Path.of("target"), Path.of("FileTestingDir")
-        };
+        var IgnoreLists = new Path[]{Path.of(".idea"), Path.of(".git"), Path.of("src"), Path.of("out"),
+                Path.of("target"), Path.of("FileTestingDir")};
 
         Collections.addAll(JFTIgnore, IgnoreLists);
 
@@ -227,16 +201,19 @@ public class JFT {
 
         var changed = getDifferences(new ArrayList<Path>(z.keySet()), new ArrayList<Path>(pathBindings.keySet()));
 
-//        initializeRepository();
-        var cli = new Client("192.168.86.110", 5000, "HIBEAT THIS IS A PASSWD");
+        // initializeRepository();
+        Settings settings = new Settings();
+        int port = Integer.parseInt(settings.getProp().getProperty("port", "5000"));
+
+        var cli = new Client("192.168.86.110", port, "HIBEAT THIS IS A PASSWD");
         System.out.println(t);
         cli.sendFiles(t, changed);
 
         initializeRepository();
     }
 
-    public static void main(String[] args){
-//        initializeRepository();
+    public static void main(String[] args) throws IOException {
+        // initializeRepository();
         push();
     }
 }
