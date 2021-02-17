@@ -87,6 +87,19 @@ class Server implements ServerInterface {
 //                    break;
                 }
 
+                if (data.length() == 5 && data.substring(0, 5).equals("$DEL$")) {
+                    data = input.readUTF();
+                    data = new String(encryptionEngine.decrypt(data));
+                    data = new String("FileTestingDir" +File.separator + data);
+
+                    if (new File(data).delete()){
+                        System.out.println("Succesfully deleted file");
+                    } else {
+                        System.out.println("Failure deleting "+data);
+                    };
+                    System.out.println("broke");
+                }
+
                 if (data.equals("$ENDTRANSFER$")) break;
 
             } catch (Exception e) {

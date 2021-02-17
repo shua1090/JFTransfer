@@ -88,6 +88,14 @@ public class Client implements ClientInterface {
             readArray(z);
         }
 
+        for (var z : newChangesFileset.get(1)){
+            System.out.println();
+            this.sendBytes(this.encryptionEngine.encrypt("$DEL$").getBytes(StandardCharsets.UTF_8));
+            System.out.println(String.valueOf(z));
+            this.sendBytes(this.encryptionEngine.encrypt(String.valueOf(z)).getBytes(StandardCharsets.UTF_8));
+
+        }
+
 /*        for (var z : newChangesFileset.get(0)){
             System.out.println("on"+z);
             readArray(z);

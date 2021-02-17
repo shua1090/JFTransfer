@@ -212,7 +212,7 @@ public class JFT {
         var IgnoreLists = new Path[]{
                 Path.of(".idea"), Path.of(".git"),
                 Path.of("src"), Path.of("out"),
-                Path.of("target")
+                Path.of("target"), Path.of("FileTestingDir")
         };
 
         Collections.addAll(JFTIgnore, IgnoreLists);
