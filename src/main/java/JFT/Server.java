@@ -34,6 +34,10 @@ class Server implements ServerInterface {
     }
 
     public static void main(String[] args) {
+//        JFT.getInput("What is your password?");
+
+//        JFT.logger.log();
+
         var z = new Server(5000, "HIBEAT THIS IS A PASSWD");
     }
 

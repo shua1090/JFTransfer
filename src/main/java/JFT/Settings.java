@@ -1,38 +1,88 @@
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+package JFT;
+
+import java.io.*;
+import java.util.Arrays;
 import java.util.Properties;
 
 public class Settings {
-    private Properties prop;
-    private final FileInputStream in;
+    private static Properties prop = new Properties();;
 
-    public Settings() throws IOException {
-        this.prop = new Properties();
-        if (!createConfFile("jft.conf")) throw new FileNotFoundException("Settings file not found, or cannot be created!"); 
-        this.in = new FileInputStream("jft.conf");
-        prop.load(in);
-        in.close();
+    public static void readSettings() {
+
+//        Properties prop = new Properties();
+        String fileName = ".jft" + File.separator + "settings.cfg";
+        InputStream is = null;
+        try {
+            is = new FileInputStream(fileName);
+            prop.load(is);
+        } catch (Exception ex) {
+            System.out.println("Error creating Settings file: ");
+            ex.printStackTrace();
+        }
+
+//        System.out.println(prop.getProperty("app.name"));
+//        System.out.println(prop.getProperty("app.version"));
+
     }
 
-    public Settings(String fileName) throws IOException {
-        this.prop = new Properties();
-        if (!createConfFile("jft.conf")) throw new FileNotFoundException("Settings file not found, or cannot be created!");
-        this.in = new FileInputStream(fileName);
-        prop.load(in);
-        in.close();
+    public static void writeAllConfigs(){
+        var z = new String[]{
+                "password",
+                "port",
+                "ipv4"
+        };
+
+        var file = new File(".jft" + File.separator + "settings.cfg");
+
+        try {
+//            prop.setProperty("key", "value");
+            for (var k : z){
+                try {
+//                    prop.setProperty(k);
+                    if (prop.getProperty(k) == null){
+                        prop.setProperty(k, "UNSET");
+                    }
+                } catch (Exception e){System.out.println("Wait");}
+            }
+
+            OutputStream out = new FileOutputStream(file);
+            prop.store(out, "Modify the settings as you see fit. If a setting is not valid, the program will use a default.");
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
-    public boolean createConfFile(String name) throws IOException {
-        return new File(name).createNewFile();
+    public static boolean createConfFile() {
+        boolean stat = false;
+        try {
+            new File(".jft" + File.separator + "settings.cfg").createNewFile();
+            writeAllConfigs();
+            stat = true;
+        } catch (Exception e) {
+            stat = false;
+        }
+
+        return stat;
     }
 
-    public Properties getProp() {
-        return prop;
+    public static String getProp(String key) {
+        return prop.getProperty(key);
     }
 
-    public void setProp(Properties prop) {
-        this.prop = prop;
+    public static void setProp(String key, String val) {
+        prop.setProperty(key, val);
     }
+
+    public static void main(String[] args){
+//        boolean a = createConfFile();
+//        readSettings();
+//        System.out.println(getProp("encrypted"));
+
+        setProp("encrypted", "true");
+        createConfFile();
+        writeAllConfigs();
+    }
+
 }
