@@ -5,11 +5,12 @@ import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
-import java.util.*;
-import java.util.stream.Stream;
-import java.util.logging.*;
-
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 public class JFT {
     public static HashMap<Path, String> pathBindings = new HashMap<>();
@@ -17,6 +18,7 @@ public class JFT {
     public static ArrayList<Path> JFTIgnore = new ArrayList<>(Collections.singletonList(Path.of(".jft")));
 
     public static Logger logger = Logger.getLogger(JFT.class.getName());
+    static String jftDir = System.getProperty("user.dir") + "/.jft/";
 
     static boolean isChild(File maybeChild, File possibleParent) {
         return maybeChild.getAbsolutePath().startsWith(possibleParent.getAbsolutePath());
@@ -59,7 +61,9 @@ public class JFT {
                 String hash = getShaMD(data);
                 pathBindings.put(z, hash);
             } catch (Exception e) {
-                System.out.println("ERROR IN " + z);
+                logger.log(Level.SEVERE, "Error in file " + z + ". See stacktrace below.");
+                e.printStackTrace();
+//                System.out.println("ERROR IN " + z);
             }
         }
 
@@ -67,12 +71,20 @@ public class JFT {
 
     }
 
+    /*
+     * A: A B C B: A B D -> C
+     *
+     * A: A B D B: A B C -> D
+     */
+
     public static String getShaMD(byte[] inputArray) {
         MessageDigest md = null;
         try {
             md = MessageDigest.getInstance("SHA-256");
         } catch (Exception E) {
-            System.out.println(Arrays.toString(E.getStackTrace()));
+            logger.log(Level.SEVERE, "An error occurred when acquiring the SHA-256 Algorithm. Please report the stacktrace below: ");
+            E.printStackTrace();
+            System.exit(-1);
         }
 
         assert md != null;
@@ -90,12 +102,6 @@ public class JFT {
         return hexString.toString();
     }
 
-    /*
-     * A: A B C B: A B D -> C
-     *
-     * A: A B D B: A B C -> D
-     */
-
     // Index 0: Additions; Index 1: Deletions;
     public static ArrayList<ArrayList<Path>> getDifferences(ArrayList<Path> ListA, ArrayList<Path> ListB) {
 
@@ -105,8 +111,8 @@ public class JFT {
         deletions.removeAll(ListB);
         additions.removeAll(ListA);
 
-        System.out.println("Deletions: " + deletions);
-        System.out.println("Additions: " + additions);
+        logger.log(Level.FINEST, "Deletions: " + deletions);
+        logger.log(Level.FINEST, "Additions: " + additions);
 
         var arr = new ArrayList<ArrayList<Path>>(2);
         arr.add(additions);
@@ -139,8 +145,6 @@ public class JFT {
 
     public static HashMap<Path, String> readArray(String filename) {
         String line;
-//        ArrayList<Path> arr = new ArrayList<Path>();
-
         HashMap<Path, String> serializedData = new HashMap<>();
 
         try {
@@ -152,8 +156,12 @@ public class JFT {
                 serializedData.put(Path.of(pathGet), hashGet);
             }
 
+            logger.log(Level.FINEST, "Read prevcom.file");
+
         } catch (IOException ex) {
+            logger.log(Level.SEVERE, "Error reading/loading changelog");
             ex.printStackTrace();
+            System.exit(-1);
         }
 
         return serializedData;
@@ -161,55 +169,48 @@ public class JFT {
 
     public static void readJFTIgnore(String filename) {
         String line;
-//        ArrayList<Path> arr = new ArrayList<Path>();
-
-//        HashMap<Path, String> serializedData = new HashMap<Path, String>();
 
         try {
             BufferedReader reader = new BufferedReader(new FileReader(filename));
             while ((line = reader.readLine()) != null) {
-                // arr.add(Path.of(line));
                 JFTIgnore.add(Path.of(line));
             }
 
+            logger.log(Level.FINEST, "Read .jftignore");
         } catch (IOException ex) {
+            logger.log(Level.SEVERE, ".jftignore was not found. This file should've been initialized when the repository was initialized.");
             ex.printStackTrace();
         }
 
     }
 
-    static String jftDir = System.getProperty("user.dir") + "/.jft/";
-
     public static void initializeRepository() {
 
         getShaMDFileArray(allRelativeFilePathsInDirectory());
         try {
-            // readArray(System.getProperty("user.dir")+"/.jft/prevcom.file");
             Files.createDirectories(Path.of(jftDir));
-            // System.out.println(pathBindings);
             writeArray(jftDir + "prevcom.file", pathsInDirectoryList);
+
             Settings.createConfFile();
         } catch (IOException e) {
-            System.out.println("An error occurred:");
+            logger.log(Level.SEVERE, "Was unable to create the required configuration files under .jft/");
             e.printStackTrace();
         }
 
     }
 
-    public static String getInput(String prompt){
+    public static String getInput(String prompt) {
         String text = null;
         try {
-            // Enter data using BufferReader
             BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
 
-            // Reading data using readLine
             System.out.println(prompt);
-            String name = reader.readLine();
+            text = reader.readLine();
 
-            // Printing the read line
-            System.out.println(name);
         } catch (IOException e) {
             e.printStackTrace();
+            logger.log(Level.SEVERE, "Did not get any input. Exiting.");
+            System.exit(-1);
         }
 
         return text;
@@ -219,50 +220,54 @@ public class JFT {
 
         Settings.readSettings();
 
-        var z = readArray(jftDir + "/prevcom.file");
+        var changeLogArr = readArray(jftDir + File.separator + "prevcom.file");
 
         readJFTIgnore(jftDir + File.separator + ".jftignore");
 
         getShaMDFileArray(allRelativeFilePathsInDirectory());
 
-        var temp = new ArrayList<Path>(z.keySet());
+        var temp = new ArrayList<Path>(changeLogArr.keySet());
 
-        var changedExistingFiles = temp.retainAll(new ArrayList<Path>(pathBindings.keySet()));
+        temp.retainAll(new ArrayList<Path>(pathBindings.keySet()));
 
-        var t = getModifiedFiles(z, temp);
+        var modifiedFiles = getModifiedFiles(changeLogArr, temp);
 
-        var changed = getDifferences(new ArrayList<Path>(z.keySet()), new ArrayList<Path>(pathBindings.keySet()));
-
-        // initializeRepository();
-//        Settings settings = new Settings();
-//        int port = Integer.parseInt(settings.getProp().getProperty("port", "5000"));
+        var changed = getDifferences(new ArrayList<Path>(changeLogArr.keySet()), new ArrayList<Path>(pathBindings.keySet()));
 
         int port = (!Settings.getProp("port").equals("UNSET")) ? Integer.parseInt(Settings.getProp("port")) : 5000;
-        String ipaddr = (!Settings.getProp("port").equals("UNSET")) ? Settings.getProp("ipv4") : getInput("IP Address: \n");
 
-        var cli = new Client(ipaddr, port, "HIBEAT THIS IS A PASSWD");
+        logger.log(Level.FINEST, "Sending through port " + port);
 
-        System.out.println(t);
+        String ipaddr = (!Settings.getProp("ipv4").equals("UNSET")) ? Settings.getProp("ipv4") : getInput("IP Address:");
 
-        cli.sendFiles(t, changed);
+        logger.log(Level.FINEST, "IP address: " + ipaddr);
 
-//        System.out.println("Because of data integrity issues, we recommend you check that your files arrived safely." +
-//                "\nIf they haven't, there will be a problem, because the repository will be reinitialized after this message." +
-//                "\nPlease manually scp, ftp, sftp, the changed files and report any error messages that you receive");
-//        System.out.println("\nPress enter, to signal your acceptance");
-//        System.in.readAllBytes();
+        Console console = System.console();
 
-//        initializeRepository();
+        String passwd;
+
+        if (console != null)
+            passwd = String.valueOf(console.readPassword("password"));
+        else
+            passwd = (!Settings.getProp("password").equals("UNSET")) ? Settings.getProp("password") : getInput("Password: ");
+
+        var cli = new Client(ipaddr, port, passwd);
+
+        logger.log(Level.INFO, "Sending files now");
+        cli.sendFiles(modifiedFiles, changed);
+        logger.log(Level.INFO, "Finished sending files. Updating changelog now.");
+
         getShaMDFileArray(allRelativeFilePathsInDirectory());
         try {
             writeArray(jftDir + "prevcom.file", pathsInDirectoryList);
         } catch (IOException e) {
+            logger.log(Level.SEVERE, "Error writing to changelog. Report this error, the program is useless if this writing to changelog doesn't work.");
             e.printStackTrace();
+            System.exit(-1);
         }
     }
 
     public static void main(String[] args) throws IOException {
-        // initializeRepository();
         push();
     }
 }

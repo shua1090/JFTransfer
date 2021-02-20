@@ -3,6 +3,9 @@ package JFT;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.logging.Level;
+
+import static JFT.JFT.logger;
 
 interface ServerInterface {
     void getFiles(Socket sock);
@@ -18,7 +21,10 @@ class Server implements ServerInterface {
         try {
             serverSocket = new ServerSocket(port);
         } catch (IOException e) {
-            System.err.println("Could not listen on port: 2343");
+            logger.log(Level.SEVERE, "Could not listen on port " + port);
+            e.printStackTrace();
+            System.exit(-1);
+//            System.err.println("Could not listen on port: 2343");
         }
 
         while (listeningSocket) {
@@ -26,7 +32,8 @@ class Server implements ServerInterface {
                 Socket clientSocket = serverSocket.accept();
                 getFiles(clientSocket);
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.log(Level.WARNING, "Shutting down the Server");
+                System.exit(0);
             }
 //            MiniServer mini = new MiniServer(clientSocket);
 //            mini.start();
@@ -57,16 +64,16 @@ class Server implements ServerInterface {
                 String data = input.readUTF();
                 data = new String(encryptionEngine.decrypt(data));
 
-                if (data.length() > 6 && data.substring(0, 6).equals("$FILE$")) {
-                    System.out.println("FILE Path: " + data.substring(6));
+                if (data.length() > 6 && data.startsWith("$FILE$")) {
 
-                    File f = new File("FileTestingDir" +File.separator +data.substring(6));
+                    logger.log(Level.FINEST, data.substring(6));
+                    File f = new File(data.substring(6));
 
                     FileWriter fw;
                     try {
-                            fw = new FileWriter(f);
-                    } catch (FileNotFoundException ex){
-                        System.out.println("File not found, creating");
+                        fw = new FileWriter(f);
+                    } catch (FileNotFoundException ex) {
+                        logger.log(Level.WARNING, "File not found, creating");
                         f.getParentFile().mkdirs();
                         f.createNewFile();
                         fw = new FileWriter(f);
@@ -77,36 +84,37 @@ class Server implements ServerInterface {
                         data = new String(encryptionEngine.decrypt(data));
 
                         if (data.equals("$END$")) {
-                            System.out.println("END FILE");
+                            logger.log(Level.FINEST, "Reached End of File");
                             break;
                         } else {
                             fw.write(data);
                             fw.write(String.format("%n"));
-//                            System.out.println(data);
                         }
                     }
                     fw.flush();
                     fw.close();
-                    System.out.println("broke");
-//                    break;
                 }
 
-                if (data.length() == 5 && data.substring(0, 5).equals("$DEL$")) {
+                if (data.length() == 5 && data.startsWith("$DEL$")) {
                     data = input.readUTF();
                     data = new String(encryptionEngine.decrypt(data));
-                    data = new String("FileTestingDir" +File.separator + data);
+                    data = data;
 
-                    if (new File(data).delete()){
-                        System.out.println("Succesfully deleted file");
+                    logger.log(Level.FINEST, "Received file to delete: " + data);
+
+                    if (new File(data).delete()) {
+                        logger.log(Level.FINEST, "Succesfully deleted file.");
                     } else {
-                        System.out.println("Failure deleting "+data);
-                    };
-                    System.out.println("broke");
+                        logger.log(Level.SEVERE, "Failure deleting " + data);
+                    }
                 }
 
-                if (data.equals("$ENDTRANSFER$")) break;
-
+                if (data.equals("$ENDTRANSFER$")) {
+                    logger.log(Level.INFO, "Finished Transfer");
+                    break;
+                }
             } catch (Exception e) {
+                logger.log(Level.SEVERE, "Unknown error. Please report this incident to the developer: ");
                 e.printStackTrace();
                 break;
             }
@@ -118,6 +126,7 @@ class Server implements ServerInterface {
         try {
             serverSocket.close();
         } catch (IOException e) {
+            logger.log(Level.INFO, "Server was unable to close the socket. Don't worry, this doesn't really mean anything.");
             e.printStackTrace();
         }
     }
